@@ -12,23 +12,23 @@ import logging
 
 # Импортируем подмодули Flask для запуска веб-сервиса.
 from flask import Flask, request
-app = Flask(__name__)
 
+app = Flask(__name__)
 
 logging.basicConfig(level=logging.DEBUG)
 
 # Хранилище данных о сессиях.
 sessionStorage = {
     'user_id': {
-        
+
     }
 }
 
+
 # Задаем параметры приложения Flask.
 @app.route("/", methods=['POST'])
-
 def main():
-# Функция получает тело запроса и возвращает ответ.
+    # Функция получает тело запроса и возвращает ответ.
     logging.info('Request: %r', request.json)
 
     response = {
@@ -49,6 +49,7 @@ def main():
         indent=2
     )
 
+
 # Функция для непосредственной обработки диалога.
 def handle_dialog(req, res):
     user_id = req['session']['user_id']
@@ -64,11 +65,8 @@ def handle_dialog(req, res):
             ],
             'cur_theme': 'default',
             'cur_quest': 0,
-            'done': {
-                'default': {
-                    'quest_num': []
-                }
-            },
+            'cur_dif': 0,
+            'done': {},
             'count_win_quests': 0,
             'count_lose_quests': 0,
         }
@@ -86,33 +84,43 @@ def handle_dialog(req, res):
         "погнали",
     ]:
         start_dialog(user_id, res)
-        res['response']['text'] = 'test'
         return
-    res['response']['text'] = 'Выберете предложенный ответ'
+
     return
-    
-    
+
+
 def start_dialog(user_id, res):
     session = sessionStorage[user_id]
+    session['done']['default'] = {'count_quest': set()}
     next_question(user_id)
-    res['response']['text'] = data[session['cur_theme']]['questions'][session['cur_quest']]
+    write_response(user_id, res)
+    sessionStorage[user_id] = session
+
+
+# for commit
+
+def write_response(user_id, res):
+    session = sessionStorage[user_id]
+    res['response']['text'] = data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['body']
     res['response']['buttons'] = get_suggests(user_id)
+
 
 def next_question(user_id):
     session = sessionStorage[user_id]
-    if (session['done'][session['cur_theme']]['quest_num'].__len__() > 3):
+    if len(session['done'][session['cur_theme']]['count_quest']) > 3:
         switch_theme(user_id)
         return
-    num_quest = -1
-    while (True):
-        num_quest = random.randrange(0, data['themes'][session['cur_theme']]['questions'].__len__() - 1)
-        if (not num_quest in session['done'][session['cur_theme']]['quest_num']):
+    while True:
+        num_quest = random.randrange(0, len(data['themes'][session['cur_theme']]['questions'][session['cur_dif']]) - 1)
+        if not (num_quest in session['done'][session['cur_theme']]['count_quest']):
             break
     session['cur_quest'] = num_quest
+    sessionStorage[user_id] = session
 
 
 def switch_theme(user_id):
     return
+
 
 # Функция возвращает две подсказки для ответа.
 def get_suggests(user_id):

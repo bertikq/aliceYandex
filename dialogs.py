@@ -1,31 +1,27 @@
 data = {
     'themes': {
-        'default': {
+        'общая': {
             'questions': [
-                {
-                    'body': 'is it possible?',
-                    'answers': ['yes', 'no'],
-                    'resources': [
-                        'https://ru.wikipedia.org/wiki/Yes_(%D0%B3%D1%80%D1%83%D0%BF%D0%BF%D0%B0)',
-                    ],
-                    'next_quest': [
-                        -1, 
-                    ]
-                },
-                {
-                    'body': 'Its TEst2?',
-                    'answers': ['TEst', 'NOTESTno'],
-                    'resources': [
-                        'https://ru.wikipedia.org/wiki/Yes_(%D0%B3%D1%80%D1%83%D0%BF%D0%BF%D0%B0)',
-                    ],
-                    'next_quest': [
-                        -1,
-                    ]
-                }
+                [
+                    {
+                        'body': 'Ты тут?',
+                        'answers': ['да', 'нет'],
+                        'resources': [
+                            'https://ru.wikipedia.org/wiki/Yes_(%D0%B3%D1%80%D1%83%D0%BF%D0%BF%D0%B0)',
+                        ]
+                    },
+                    {
+                        'body': 'Ты меня слышишь?',
+                        'answers': ['да', 'нет', 'наверное'],
+                        'resources': [
+                            'https://ru.wikipedia.org/wiki/Yes_(%D0%B3%D1%80%D1%83%D0%BF%D0%BF%D0%B0)',
+                        ]
+                    }
+                ]
             ]
         }
     },
-    'sample_answer': {
+    'samples': {
         'win_ans': '''
             Это правильный ответ!
             Следующий вопрос...
@@ -38,6 +34,13 @@ data = {
         'quest_ans': '''
             Тема: {}
             Вопрос: {}
-        '''
+            Варианты ответов:
+            {}
+        ''',
+        'quest_repeat': '''
+            Используй только предложенные варианты ответов. Возможно, я не расслышала твой ответ.
+            Повторю варианты ответов:
+            {}
+        ''',
     }
 }

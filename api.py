@@ -1,36 +1,15 @@
-# coding: utf-8
-# Импортирует поддержку UTF-8.
 from __future__ import unicode_literals
-
 import random
-
 from dialogs import data
-
-# Импортируем модули для работы с JSON и логами.
 import json
-import logging
-
-# Импортируем подмодули Flask для запуска веб-сервиса.
 from flask import Flask, request
 
 app = Flask(__name__)
-
-logging.basicConfig(level=logging.DEBUG)
-
-# Хранилище данных о сессиях.
-sessionStorage = {
-    'user_id': {
-
-    }
-}
+sessionStorage = {}
 
 
-# Задаем параметры приложения Flask.
 @app.route("/", methods=['POST'])
 def main():
-    # Функция получает тело запроса и возвращает ответ.
-    logging.info('Request: %r', request.json)
-
     response = {
         "version": request.json['version'],
         "session": request.json['session'],
@@ -38,11 +17,7 @@ def main():
             "end_session": False
         }
     }
-
     handle_dialog(request.json, response)
-
-    logging.info('Response: %r', response)
-
     return json.dumps(
         response,
         ensure_ascii=False,
@@ -50,58 +25,89 @@ def main():
     )
 
 
-# Функция для непосредственной обработки диалога.
 def handle_dialog(req, res):
     user_id = req['session']['user_id']
-
     if req['session']['new']:
-        # Это новый пользователь.
-        # Инициализируем сессию и поприветствуем его.
-
         sessionStorage[user_id] = {
             'suggests': [
                 "Ну начнем",
                 "Погнали",
             ],
-            'cur_theme': 'default',
+            'cur_theme': 'общая',
             'cur_quest': 0,
             'cur_dif': 0,
             'done': {},
             'count_win_quests': 0,
             'count_lose_quests': 0,
         }
-
         res['response']['text'] = 'Привет, давай начнем собеседование!'
         res['response']['buttons'] = [
             {'title': startButton, 'hide': True}
             for startButton in sessionStorage[user_id]['suggests']
         ]
         return
-
-    # Обрабатываем ответ пользователя.
-    if req['request']['original_utterance'].lower() in [
-        "Ну начнем",
+    if req['request']['original_utterance'].lower() in {
+        "ну начнем",
         "погнали",
-    ]:
+    }:
         start_dialog(user_id, res)
         return
-
+    check_answer(user_id, req, res)
     return
+
+
+def check_answer(user_id, req, res):
+    session = sessionStorage[user_id]
+    if not (req['request']['original_utterance'].lower() in
+            data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['answers']):
+        res['response']['text'] = data['samples']['quest_repeat'].format("\n".join([
+            "{}. {}".format(i + 1, item)
+            for i, item in enumerate(data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['answers'])
+        ]))
+        res['response']['buttons'] = get_suggests(user_id)
+        return
+    if req['request']['original_utterance'].lower() == data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['answers'][0]:
+        win_answer(user_id, res)
+        return
+    lose_answer(user_id, res)
+
+
+def win_answer(user_id, res):
+    session = sessionStorage[user_id]
+    session['done']['общая']['count_quest'].add(session['cur_quest'])
+    session['cur_dif'] += 1
+    session['count_win_quests'] += 1
+    sessionStorage[user_id] = session
+    next_question(user_id)
+    write_response(user_id, res)
+
+
+def lose_answer(user_id, res):
+    session = sessionStorage[user_id]
+    session['done']['общая']['count_quest'].add(session['cur_quest'])
+    session['cur_dif'] = 0
+    session['count_lose_quests'] += 1
+    sessionStorage[user_id] = session
+    next_question(user_id)
+    write_response(user_id, res)
 
 
 def start_dialog(user_id, res):
     session = sessionStorage[user_id]
-    session['done']['default'] = {'count_quest': set()}
+    session['done']['общая'] = {'count_quest': set()}
+    sessionStorage[user_id] = session
     next_question(user_id)
     write_response(user_id, res)
-    sessionStorage[user_id] = session
 
-
-# for commit
 
 def write_response(user_id, res):
     session = sessionStorage[user_id]
-    res['response']['text'] = data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['body']
+    res['response']['text'] = \
+        data['samples']['quest_ans'].format(
+            session['cur_theme'],
+            data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['body'],
+            "\n".join(["{}. {}".format(i + 1, item) for i, item in enumerate(data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['answers'])])
+        )
     res['response']['buttons'] = get_suggests(user_id)
 
 
@@ -119,14 +125,16 @@ def next_question(user_id):
 
 
 def switch_theme(user_id):
-    return
+    session = sessionStorage[user_id]
+    sessionStorage[user_id] = session
 
 
-# Функция возвращает две подсказки для ответа.
 def get_suggests(user_id):
     session = sessionStorage[user_id]
+    answers = data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['answers']
+    random.shuffle(answers)
     suggests = [
         {'title': ans, 'hide': True}
-        for ans in data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['answers']
+        for ans in answers
     ]
     return suggests

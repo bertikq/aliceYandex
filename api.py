@@ -79,7 +79,7 @@ def win_answer(user_id, res):
     session['count_win_quests'] += 1
     sessionStorage[user_id] = session
     next_question(user_id)
-    write_response(user_id, res)
+    write_response(user_id, res, True)
 
 
 def lose_answer(user_id, res):
@@ -89,7 +89,7 @@ def lose_answer(user_id, res):
     session['count_lose_quests'] += 1
     sessionStorage[user_id] = session
     next_question(user_id)
-    write_response(user_id, res)
+    write_response(user_id, res, False)
 
 
 def start_dialog(user_id, res):
@@ -97,16 +97,31 @@ def start_dialog(user_id, res):
     session['done']['общая'] = {'count_quest': set()}
     sessionStorage[user_id] = session
     next_question(user_id)
-    write_response(user_id, res)
+    res['response']['text'] = '''
+        Первый вопрос.
+        {}
+        Варианты ответов:
+        {}
+    '''.format(
+        data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['body'],
+        "\n".join(["{}. {}".format(i + 1, item) for i, item in enumerate(data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['answers'])])
+    )
+    res['response']['buttons'] = get_suggests(user_id)
 
 
-def write_response(user_id, res):
+def write_response(user_id, res, isWin):
     session = sessionStorage[user_id]
     res['response']['text'] = \
-        data['samples']['quest_ans'].format(
+        data['samples']['win_ans'].format(
             session['cur_theme'],
-            data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['body'],
-            "\n".join(["{}. {}".format(i + 1, item) for i, item in enumerate(data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['answers'])])
+            data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['body'],
+            "\n".join(["{}. {}".format(i + 1, item) for i, item in enumerate(data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['answers'])])
+        ) if isWin else \
+        data['samples']['lose_ans'].format(
+            data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['resource'],
+            session['cur_theme'],
+            data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['body'],
+            "\n".join(["{}. {}".format(i + 1, item) for i, item in enumerate(data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['answers'])])
         )
     res['response']['buttons'] = get_suggests(user_id)
 
@@ -114,7 +129,8 @@ def write_response(user_id, res):
 def next_question(user_id):
     session = sessionStorage[user_id]
     if len(session['done'][session['cur_theme']]['count_quest']) > 3:
-        switch_theme(user_id)
+        if not switch_theme(user_id):
+            send_results(user_id)
         return
     while True:
         num_quest = random.randrange(0, len(data['themes'][session['cur_theme']]['questions'][session['cur_dif']]) - 1)
@@ -126,12 +142,26 @@ def next_question(user_id):
 
 def switch_theme(user_id):
     session = sessionStorage[user_id]
+    themes = data['themes'].keys()
+    random.shuffle(themes)
+    for i in themes:
+        session['done'][i] = session['done'].get(i, default={'count_quest': []})
+        if len(session['done'][i]['count_quest']) == 0:
+            session['cur_theme'] = i
+            session['cur_dif'] = 0
+            sessionStorage[user_id] = session
+            return True
     sessionStorage[user_id] = session
+    return False
+
+
+def send_results(user_id):
+    pass
 
 
 def get_suggests(user_id):
     session = sessionStorage[user_id]
-    answers = data['themes'][session['cur_theme']]['questions'][session['cur_quest']]['answers']
+    answers = data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['answers']
     random.shuffle(answers)
     suggests = [
         {'title': ans, 'hide': True}

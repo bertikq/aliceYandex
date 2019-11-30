@@ -68,8 +68,11 @@ def check_answer(user_id, req, res):
                                                                               session['cur_dif']][
                                                                               session['cur_quest']]['answers']) > 0.5):
         win_answer(user_id, res)
-    elif not (req['request']['original_utterance'].lower() in
-              data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['answers']):
+    elif data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']][
+        'type'] != 'text' and \
+            not (req['request']['original_utterance'].lower() in
+                 data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']][
+                     'answers']):
         res['response']['text'] = data['samples']['quest_repeat'].format("\n".join([
             "{}. {}".format(i + 1, item)
             for i, item in enumerate(
@@ -121,21 +124,29 @@ def lose_answer(user_id, res):
 
 def start_dialog(user_id, res):
     session = sessionStorage[user_id]
-    session['done'][session['cur_theme']] = {'count_quest': set()}
+    themes = data['themes'].keys()
+    for i in themes:
+        session['done'][i] = {'count_quest': set()}
     sessionStorage[user_id] = session
     next_question(user_id, res)
-    res['response']['text'] = '''
-        Первый вопрос.
-        {}
-        Варианты ответов:
-        {}
-    '''.format(
-        data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['body'],
-        "\n".join(["{}. {}".format(i + 1, item) for i, item in enumerate(
-            data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['answers'])])
-    )
     if data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['type'] != 'text':
+        res['response']['text'] = '''
+            Первый вопрос.
+            {}
+            Варианты ответов:
+            {}
+        '''.format(
+            data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['body'],
+            "\n".join(["{}. {}".format(i + 1, item) for i, item in enumerate(
+                data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']][
+                    'answers'])])
+        )
         res['response']['buttons'] = get_suggests(user_id)
+    else:
+        res['response']['text'] = '''
+            Первый вопрос.
+            {}
+        '''.format(data['themes'][session['cur_theme']]['questions'][session['cur_dif']][session['cur_quest']]['body'])
 
 
 def write_response(user_id, res, isWin):
@@ -187,7 +198,6 @@ def switch_theme(user_id):
     themes = data['themes'].keys()
     random.shuffle(themes)
     for i in themes:
-        session['done'][i] = session['done'].get(i, default={'count_quest': []})
         if len(session['done'][i]['count_quest']) == 0:
             session['cur_theme'] = i
             sessionStorage[user_id] = session

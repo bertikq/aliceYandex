@@ -10,6 +10,7 @@ sessionStorage = {}
 
 @app.route("/", methods=['POST'])
 def main():
+    print("HELLO!")
     response = {
         "version": request.json['version'],
         "session": request.json['session'],
